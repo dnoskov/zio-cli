@@ -144,7 +144,7 @@ object RegularLanguage {
    * A `PrimTypeToken(value)` language represents the regular language containing any strings `s` where
    * `value.validate(s)` succeeds.
    */
-  final case class PrimTypeToken(value: PrimType[Any]) extends Token {
+  final case class PrimTypeToken(value: PrimType[Any], completerMaybe: Option[Completer]) extends Token {
     def derive(token: String, cliConfig: CliConfig) =
       value
         .validate(token, cliConfig)
@@ -153,8 +153,11 @@ object RegularLanguage {
           _ => Epsilon
         )
 
-    def firstTokens(prefix: String, compgen: Compgen): UIO[Set[String]] =
-      PrimTypeCompletion.firstTokens(value, prefix, compgen)
+    def firstTokens(prefix: String, compgen: Compgen) =
+      completerMaybe match {
+        case Some(completer) => PrimTypeCompletion.firstTokens(value, prefix, compgen, completer)
+        case None            => PrimTypeCompletion.firstTokens[Any, Nothing](value, prefix, compgen, Completer.Empty)
+      }
   }
 
   /**

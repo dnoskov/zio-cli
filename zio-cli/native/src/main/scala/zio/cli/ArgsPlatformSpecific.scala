@@ -19,7 +19,7 @@ private[cli] trait ArgsPlatformSpecific {
    * @return
    *   File argument
    */
-  def file(name: String, exists: Exists = Exists.Either): Args[JPath] =
+  def file(name: String, exists: Exists = Exists.Either): Single[JPath, Any, Nothing] =
     Single(Some(name), PrimType.Path(PathType.File, exists))
 
   /**
@@ -30,13 +30,13 @@ private[cli] trait ArgsPlatformSpecific {
    * @return
    *   File argument
    */
-  def file(exists: Exists): Args[JPath] =
+  def file(exists: Exists): Single[JPath, Any, Nothing] =
     Single(None, PrimType.Path(PathType.File, exists))
 
   /**
    * Creates a file argument with 'file' as argument name, and exists being 'Either'
    */
-  val file: Args[JPath] = file(Exists.Either)
+  val file: Single[JPath, Any, Nothing] = file(Exists.Either)
 
   /**
    * Creates a directory argument with a custom argument name
@@ -48,7 +48,7 @@ private[cli] trait ArgsPlatformSpecific {
    * @return
    *   Directory argument
    */
-  def directory(name: String, exists: Exists = Exists.Either): Args[JPath] =
+  def directory(name: String, exists: Exists = Exists.Either): Single[JPath, Any, Nothing] =
     Single(Some(name), PrimType.Path(PathType.Directory, exists))
 
   /**
@@ -59,13 +59,13 @@ private[cli] trait ArgsPlatformSpecific {
    * @return
    *   Directory argument
    */
-  def directory(exists: Exists): Args[JPath] =
+  def directory(exists: Exists): Single[JPath, Any, Nothing] =
     Single(None, PrimType.Path(PathType.Directory, exists))
 
   /**
    * Creates a directory argument with 'directory' as argument name, and exists being 'Either'
    */
-  val directory: Args[JPath] = directory(Exists.Either)
+  val directory: Single[JPath, Any, Nothing] = directory(Exists.Either)
 
   /**
    * Creates a path argument with a custom argument name
@@ -75,13 +75,13 @@ private[cli] trait ArgsPlatformSpecific {
    * @return
    *   Path argument
    */
-  def path(name: String): Args[JPath] =
+  def path(name: String): Single[JPath, Any, Nothing] =
     Single(Some(name), PrimType.Path(PathType.Either, Exists.Either))
 
   /**
    * Creates a path argument with 'path' as argument name
    */
-  val path: Args[JPath] =
+  val path: Single[JPath, Any, Nothing] =
     Single(None, PrimType.Path(PathType.Either, Exists.Either))
 
 }

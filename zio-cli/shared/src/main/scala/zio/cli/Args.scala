@@ -19,19 +19,24 @@ import java.time.{
   ZoneOffset => JZoneOffset,
   ZonedDateTime => JZonedDateTime
 }
+import zio.cli.completion._
 
 /**
  * A `Args` represents arguments that can be passed to a command-line application.
  */
 sealed trait Args[+A] extends Parameter { self =>
 
-  final def ++[B](that: Args[B])(implicit zippable: Zippable[A, B]): Args[zippable.Out] =
+  final def ++[B](that: Args[B])(implicit
+    zippable: Zippable[A, B]
+  ): Args[zippable.Out] =
     Args.Both(self, that).map { case (a, b) => zippable.zip(a, b) }
 
-  final def +[A1 >: A]: Args[::[A1]] = Args.Variadic(self, Some(1), None).map {
-    case head :: tail => ::(head, tail)
-    case Nil          => throw new IllegalStateException("Args.Variadic is not respecting the minimum.")
-  }
+  final def +[A1 >: A]: Args[::[A1]] = Args
+    .Variadic(self, Some(1), None)
+    .map {
+      case head :: tail => ::(head, tail)
+      case Nil          => throw new IllegalStateException("Args.Variadic is not respecting the minimum.")
+    }
 
   final def * : Args[List[A]] = Args.Variadic(self, None, None)
 
@@ -45,7 +50,8 @@ sealed trait Args[+A] extends Parameter { self =>
 
   def helpDoc: HelpDoc
 
-  final def map[B](f: A => B): Args[B] = Args.Map(self, (a: A) => Right(f(a)))
+  final def map[B](f: A => B): Args[B] =
+    Args.Map(self, (a: A) => Right(f(a)))
 
   final def mapOrFail[B](f: A => Either[HelpDoc, B]): Args[B] =
     Args.Map(self, (a: A) => f(a))
@@ -73,9 +79,17 @@ sealed trait Args[+A] extends Parameter { self =>
 
 object Args extends ArgsPlatformSpecific {
 
-  final case class Single[+A](pseudoName: Option[String], primType: PrimType[A], description: HelpDoc = HelpDoc.Empty)
-      extends Args[A]
+  final case class Single[+A](
+    pseudoName: Option[String],
+    primType: PrimType[A],
+    description: HelpDoc = HelpDoc.Empty,
+    completer: Option[completion.Completer] = None
+  ) extends Args[A]
+      with Completable
       with Input {
+
+    def withCompleter(comp: Completer): Single[A] =
+      copy(completer = Some(comp))
 
     override lazy val shortDesc: String = s"Argument $name: ${description.getSpan.text}"
 
@@ -121,6 +135,7 @@ object Args extends ArgsPlatformSpecific {
   }
 
   case object Empty extends Args[Unit] with Pipeline {
+
     def ??(that: String): Args[Unit] = Empty
 
     lazy val helpDoc: HelpDoc = HelpDoc.Empty
@@ -140,6 +155,7 @@ object Args extends ArgsPlatformSpecific {
   }
 
   final case class Both[+A, +B](head: Args[A], tail: Args[B]) extends Args[(A, B)] with Pipeline {
+
     def ??(that: String): Args[(A, B)] = Both(head ?? that, tail ?? that)
 
     lazy val helpDoc: HelpDoc = head.helpDoc + tail.helpDoc
@@ -166,7 +182,12 @@ object Args extends ArgsPlatformSpecific {
     override def pipeline = ("", List(head, tail))
   }
 
-  final case class Variadic[+A](value: Args[A], min: Option[Int], max: Option[Int]) extends Args[List[A]] with Input {
+  final case class Variadic[+A](
+    value: Args[A],
+    min: Option[Int],
+    max: Option[Int]
+  ) extends Args[List[A]]
+      with Input {
 
     override lazy val shortDesc: String = helpDoc.toPlaintext()
 
@@ -224,7 +245,12 @@ object Args extends ArgsPlatformSpecific {
 
   }
 
-  final case class Map[A, B](value: Args[A], f: A => Either[HelpDoc, B]) extends Args[B] with Pipeline with Wrap {
+  final case class Map[A, B](
+    value: Args[A],
+    f: A => Either[HelpDoc, B]
+  ) extends Args[B]
+      with Pipeline
+      with Wrap {
 
     override lazy val shortDesc: String = value.shortDesc
 
@@ -261,12 +287,12 @@ object Args extends ArgsPlatformSpecific {
    * @return
    *   Boolean argument
    */
-  def bool(name: String): Args[Boolean] = Single(Some(name), PrimType.Bool(None))
+  def bool(name: String): Single[Boolean] = Single(Some(name), PrimType.Bool(None))
 
   /**
    * Creates a boolean argument with boolean as argument name
    */
-  val bool: Args[Boolean] = Single(None, PrimType.Bool(None))
+  val bool: Single[Boolean] = Single(None, PrimType.Bool(None))
 
   /**
    * Creates a enumeration argument with a custom argument name
@@ -278,7 +304,7 @@ object Args extends ArgsPlatformSpecific {
    * @return
    *   Enumeration argument
    */
-  def enumeration[A](name: String)(cases: (String, A)*): Args[A] =
+  def enumeration[A](name: String)(cases: (String, A)*): Single[A] =
     Single(Some(name), PrimType.Enumeration(cases: _*))
 
   /**
@@ -289,7 +315,7 @@ object Args extends ArgsPlatformSpecific {
    * @return
    *   Enumeration argument
    */
-  def enumeration[A](cases: (String, A)*): Args[A] =
+  def enumeration[A](cases: (String, A)*): Single[A] =
     Single(None, PrimType.Enumeration(cases: _*))
 
   /**
@@ -300,13 +326,13 @@ object Args extends ArgsPlatformSpecific {
    * @return
    *   Text argument
    */
-  def text(name: String): Args[String] =
+  def text(name: String): Single[String] =
     Single(Some(name), PrimType.Text)
 
   /**
    * Creates a text argument with 'text' as argument name
    */
-  val text: Args[String] =
+  val text: Single[String] =
     Single(None, PrimType.Text)
 
   /**
@@ -317,13 +343,13 @@ object Args extends ArgsPlatformSpecific {
    * @return
    *   Decimal argument
    */
-  def decimal(name: String): Args[BigDecimal] =
+  def decimal(name: String): Single[BigDecimal] =
     Single(Some(name), PrimType.Decimal)
 
   /**
    * Creates a decimal argument with 'decimal' as argument name
    */
-  val decimal: Args[BigDecimal] =
+  val decimal: Single[BigDecimal] =
     Single(None, PrimType.Decimal)
 
   /**
@@ -334,13 +360,13 @@ object Args extends ArgsPlatformSpecific {
    * @return
    *   Duration argument
    */
-  def duration(name: String): Args[JDuration] =
+  def duration(name: String): Single[JDuration] =
     Single(Some(name), PrimType.Duration)
 
   /**
    * Creates a duration argument with 'duration' as argument name
    */
-  val duration: Args[JDuration] =
+  val duration: Single[JDuration] =
     Single(None, PrimType.Duration)
 
   /**
@@ -351,13 +377,13 @@ object Args extends ArgsPlatformSpecific {
    * @return
    *   Integer argument
    */
-  def integer(name: String): Args[BigInt] =
+  def integer(name: String): Single[BigInt] =
     Single(Some(name), PrimType.Integer)
 
   /**
    * Creates an integer argument with 'integer' as argument name
    */
-  val integer: Args[BigInt] =
+  val integer: Single[BigInt] =
     Single(None, PrimType.Integer)
 
   /**
@@ -368,13 +394,13 @@ object Args extends ArgsPlatformSpecific {
    * @return
    *   Instant argument
    */
-  def instant(name: String): Args[JInstant] =
+  def instant(name: String): Single[JInstant] =
     Single(Some(name), PrimType.Instant)
 
   /**
    * Creates a instant argument with 'instant' as argument name
    */
-  val instant: Args[JInstant] =
+  val instant: Single[JInstant] =
     Single(None, PrimType.Instant)
 
   /**
@@ -385,7 +411,7 @@ object Args extends ArgsPlatformSpecific {
    * @return
    *   LocalDate argument
    */
-  def localDate(name: String): Args[JLocalDate] =
+  def localDate(name: String): Single[JLocalDate] =
     Single(Some(name), PrimType.LocalDate)
 
   /**
@@ -396,13 +422,13 @@ object Args extends ArgsPlatformSpecific {
    * @return
    *   LocalDateTime argument
    */
-  def localDateTime(name: String): Args[JLocalDateTime] =
+  def localDateTime(name: String): Single[JLocalDateTime] =
     Single(Some(name), PrimType.LocalDateTime)
 
   /**
    * Creates a localDateTime argument with 'date-time' as argument name
    */
-  val localDateTime: Args[JLocalDateTime] =
+  val localDateTime: Single[JLocalDateTime] =
     Single(None, PrimType.LocalDateTime)
 
   /**
@@ -413,13 +439,13 @@ object Args extends ArgsPlatformSpecific {
    * @return
    *   LocalTime argument
    */
-  def localTime(name: String): Args[JLocalTime] =
+  def localTime(name: String): Single[JLocalTime] =
     Single(Some(name), PrimType.LocalTime)
 
   /**
    * Creates a localTime argument with 'local-time' as argument name
    */
-  val localTime: Args[JLocalTime] =
+  val localTime: Single[JLocalTime] =
     Single(None, PrimType.LocalTime)
 
   /**
@@ -430,13 +456,13 @@ object Args extends ArgsPlatformSpecific {
    * @return
    *   MonthDay argument
    */
-  def monthDay(name: String): Args[JMonthDay] =
+  def monthDay(name: String): Single[JMonthDay] =
     Single(Some(name), PrimType.MonthDay)
 
   /**
    * Creates a monthDay argument with 'month-day' as argument name
    */
-  val monthDay: Args[JMonthDay] =
+  val monthDay: Single[JMonthDay] =
     Single(None, PrimType.MonthDay)
 
   /**
@@ -452,13 +478,13 @@ object Args extends ArgsPlatformSpecific {
    * @return
    *   OffsetDateTime argument
    */
-  def offsetDateTime(name: String): Args[JOffsetDateTime] =
+  def offsetDateTime(name: String): Single[JOffsetDateTime] =
     Single(Some(name), PrimType.OffsetDateTime)
 
   /**
    * Creates a offsetDateTime argument with 'offset-date-time' as argument name
    */
-  val offsetDateTime: Args[JOffsetDateTime] =
+  val offsetDateTime: Single[JOffsetDateTime] =
     Single(None, PrimType.OffsetDateTime)
 
   /**
@@ -469,13 +495,13 @@ object Args extends ArgsPlatformSpecific {
    * @return
    *   OffsetTime argument
    */
-  def offsetTime(name: String): Args[JOffsetTime] =
+  def offsetTime(name: String): Single[JOffsetTime] =
     Single(Some(name), PrimType.OffsetTime)
 
   /**
    * Creates a offsetTime argument with 'offset-time' as argument name
    */
-  val offsetTime: Args[JOffsetTime] =
+  val offsetTime: Single[JOffsetTime] =
     Single(None, PrimType.OffsetTime)
 
   /**
@@ -486,13 +512,13 @@ object Args extends ArgsPlatformSpecific {
    * @return
    *   Period argument
    */
-  def period(name: String): Args[JPeriod] =
+  def period(name: String): Single[JPeriod] =
     Single(Some(name), PrimType.Period)
 
   /**
    * Creates a period argument with 'period' as argument name
    */
-  val period: Args[JPeriod] =
+  val period: Single[JPeriod] =
     Single(None, PrimType.Period)
 
   /**
@@ -503,13 +529,13 @@ object Args extends ArgsPlatformSpecific {
    * @return
    *   Year argument
    */
-  def year(name: String): Args[JYear] =
+  def year(name: String): Single[JYear] =
     Single(Some(name), PrimType.Year)
 
   /**
    * Creates a year argument with 'year' as argument name
    */
-  val year: Args[JYear] =
+  val year: Single[JYear] =
     Single(None, PrimType.Year)
 
   /**
@@ -520,13 +546,13 @@ object Args extends ArgsPlatformSpecific {
    * @return
    *   YearMonth argument
    */
-  def yearMonth(name: String): Args[JYearMonth] =
+  def yearMonth(name: String): Single[JYearMonth] =
     Single(Some(name), PrimType.YearMonth)
 
   /**
    * Creates a yearMonth argument with 'year-month' as argument name
    */
-  val yearMonth: Args[JYearMonth] =
+  val yearMonth: Single[JYearMonth] =
     Single(None, PrimType.YearMonth)
 
   /**
@@ -537,13 +563,13 @@ object Args extends ArgsPlatformSpecific {
    * @return
    *   ZonedDateTime argument
    */
-  def zonedDateTime(name: String): Args[JZonedDateTime] =
+  def zonedDateTime(name: String): Single[JZonedDateTime] =
     Single(Some(name), PrimType.ZonedDateTime)
 
   /**
    * Creates a zonedDateTime argument with 'zoned-date-time' as argument name
    */
-  val zonedDateTime: Args[JZonedDateTime] =
+  val zonedDateTime: Single[JZonedDateTime] =
     Single(None, PrimType.ZonedDateTime)
 
   /**
@@ -554,13 +580,13 @@ object Args extends ArgsPlatformSpecific {
    * @return
    *   ZoneId argument
    */
-  def zoneId(name: String): Args[JZoneId] =
+  def zoneId(name: String): Single[JZoneId] =
     Single(Some(name), PrimType.ZoneId)
 
   /**
    * Creates a zoneId argument with 'zone-id' as argument name
    */
-  val zoneId: Args[JZoneId] =
+  val zoneId: Single[JZoneId] =
     Single(None, PrimType.ZoneId)
 
   /**
@@ -571,12 +597,12 @@ object Args extends ArgsPlatformSpecific {
    * @return
    *   ZoneOffset argument
    */
-  def zoneOffset(name: String): Args[JZoneOffset] =
+  def zoneOffset(name: String): Single[JZoneOffset] =
     Single(Some(name), PrimType.ZoneOffset)
 
   /**
    * Creates a zoneOffset argument with 'zone-offset' as argument name
    */
-  val zoneOffset: Args[JZoneOffset] =
+  val zoneOffset: Single[JZoneOffset] =
     Single(None, PrimType.ZoneOffset)
 }

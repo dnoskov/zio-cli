@@ -12,8 +12,8 @@ import scalafix.sbt.ScalafixPlugin.autoImport._
 object BuildHelper {
 
   val Scala212 = "2.12.18"
-  val Scala213 = "2.13.11"
-  val Scala3   = "3.3.1"
+  val Scala213 = "2.13.15"
+  val Scala3   = "3.6.2"
 
   val SilencerVersion = "1.17.13"
 
@@ -159,21 +159,21 @@ object BuildHelper {
     crossScalaVersions       := Seq(Scala212, Scala213, Scala3),
     ThisBuild / scalaVersion := Scala213,
     scalacOptions ++= stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
-    libraryDependencies ++= {
-      if (scalaVersion.value.take(1) == "3")
-        Seq(
-          "com.github.ghik" % s"silencer-lib_$Scala213" % SilencerVersion % Provided
-        )
-      else
-        Seq(
-          "com.github.ghik" % "silencer-lib" % SilencerVersion % Provided cross CrossVersion.full,
-          compilerPlugin("com.github.ghik" % "silencer-plugin" % SilencerVersion cross CrossVersion.full)
-        )
-    },
+    // libraryDependencies ++= {
+    //   if (scalaVersion.value.take(1) == "3")
+    //     Seq(
+    //       "com.github.ghik" % s"silencer-lib_$Scala213" % SilencerVersion % Provided
+    //     )
+    //   else
+    //     Seq(
+    //       "com.github.ghik" % "silencer-lib" % SilencerVersion % Provided cross CrossVersion.full,
+    //       compilerPlugin("com.github.ghik" % "silencer-plugin" % SilencerVersion cross CrossVersion.full)
+    //     )
+    // },
     semanticdbEnabled := scalaVersion.value != Scala3, // enable SemanticDB
     semanticdbOptions += "-P:semanticdb:synthetics:on",
-    semanticdbVersion                      := scalafixSemanticdb.revision, // use Scalafix compatible version
-    ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value),
+    semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
+    // ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value),
     ThisBuild / scalafixDependencies ++= List(
       "com.github.liancheng" %% "organize-imports" % "0.5.0",
       "com.github.vovapolu"  %% "scaluzzi"         % "0.1.16"

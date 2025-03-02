@@ -81,11 +81,11 @@ object Completion {
         Epsilon
       case Options.WithDefault(options, _) =>
         toRegularLanguage(options).?
-      case single @ Options.Single(_, _, _: PrimType.Bool, _, _) =>
+      case single @ Options.Single(_, _, _: PrimType.Bool, _, _, _) =>
         single.names.foldLeft[RegularLanguage](Empty)((lang, name) => lang | StringToken(name))
-      case single @ Options.Single(_, _, primType, _, _) =>
+      case single @ Options.Single(_, _, primType, _, _, _) =>
         val names = single.names.foldLeft[RegularLanguage](Empty)((lang, name) => lang | StringToken(name))
-        names ~ PrimTypeToken(primType)
+        names ~ PrimTypeToken(primType, single.completer)
       case Options.OrElse(left, right) =>
         toRegularLanguage(left) | toRegularLanguage(right)
       case Options.Both(left, right) =>
@@ -114,8 +114,8 @@ object Completion {
   def toRegularLanguage(args: Args[Any]): RegularLanguage = args match {
     case Args.Empty =>
       Epsilon
-    case Args.Single(_, primType, _) =>
-      PrimTypeToken(primType)
+    case Args.Single(_, primType, _, completer) =>
+      PrimTypeToken(primType, completer)
     case Args.Both(head, tail) =>
       toRegularLanguage(head) ~ toRegularLanguage(tail)
     case Args.Variadic(value, minOpt, maxOpt) =>

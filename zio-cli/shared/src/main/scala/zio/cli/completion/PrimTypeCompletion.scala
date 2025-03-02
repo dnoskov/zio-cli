@@ -8,14 +8,19 @@ import java.time.{ZoneId => JZoneId}
 import scala.jdk.CollectionConverters._
 
 object PrimTypeCompletion {
-  def firstTokens(primType: PrimType[Any], prefix: String, compgen: Compgen): UIO[Set[String]] =
+  def firstTokens[R, E](
+    primType: PrimType[Any],
+    prefix: String,
+    compgen: Compgen,
+    completer: Completer
+  ): ZIO[R, E, Set[String]] =
     primType match {
       case PrimType.Bool(_) =>
         ZIO.succeed(Set("true", "false").filter(_.startsWith(prefix))).map(appendSpaces)
       case PrimType.Decimal =>
-        ZIO.succeed(Set.empty)
+        completer.complete
       case PrimType.Duration =>
-        ZIO.succeed(Set.empty)
+        completer.complete
       case PrimType.Enumeration(cases @ _*) =>
         ZIO
           .succeed(cases.collect {
@@ -23,39 +28,39 @@ object PrimTypeCompletion {
           }.toSet)
           .map(appendSpaces)
       case PrimType.Instant =>
-        ZIO.succeed(Set.empty)
+        completer.complete
       case PrimType.Integer =>
-        ZIO.succeed(Set.empty)
+        completer.complete
       case PrimType.LocalDate =>
-        ZIO.succeed(Set.empty)
+        completer.complete
       case PrimType.LocalDateTime =>
-        ZIO.succeed(Set.empty)
+        completer.complete
       case PrimType.LocalTime =>
-        ZIO.succeed(Set.empty)
+        completer.complete
       case PrimType.MonthDay =>
-        ZIO.succeed(Set.empty)
+        completer.complete
       case PrimType.OffsetDateTime =>
-        ZIO.succeed(Set.empty)
+        completer.complete
       case PrimType.OffsetTime =>
-        ZIO.succeed(Set.empty)
+        completer.complete
       case PrimType.Path(PathType.Either | PathType.File, _, _) =>
         compgen.completeFileNames(prefix).map(_.toSet).orDie
       case PrimType.Path(PathType.Directory, _, _) =>
         compgen.completeDirectoryNames(prefix).map(_.toSet).orDie
       case PrimType.Period =>
-        ZIO.succeed(Set.empty)
+        completer.complete
       case PrimType.Text =>
-        ZIO.succeed(Set.empty)
+        completer.complete
       case PrimType.Year =>
-        ZIO.succeed(Set.empty)
+        completer.complete
       case PrimType.YearMonth =>
-        ZIO.succeed(Set.empty)
+        completer.complete
       case PrimType.ZoneId =>
         ZIO.succeed(JZoneId.getAvailableZoneIds().iterator.asScala.filter(_.startsWith(prefix)).toSet).map(appendSpaces)
       case PrimType.ZoneOffset =>
-        ZIO.succeed(Set.empty)
+        completer.complete
       case PrimType.ZonedDateTime =>
-        ZIO.succeed(Set.empty)
+        completer.complete
     }
 
   def appendSpaces(tokens: Set[String]): Set[String] = tokens.map(_ + " ")

@@ -23,6 +23,7 @@ import java.time.{
 }
 import scala.annotation.tailrec
 import zio.cli.PrimType.Bool
+import zio.cli.completion._
 
 /**
  * A `Flag[A]` models a command-line flag that produces a value of type `A`.
@@ -152,7 +153,7 @@ sealed trait Options[+A] extends Parameter { self =>
     asInstanceOf[Options[_]] match {
       case Options.Empty                   => false
       case Options.WithDefault(options, _) => options.isBool
-      case Single(_, _, primType, _, _)    => primType.isBool
+      case Single(_, _, primType, _, _, _) => primType.isBool
       case Options.Map(value, _)           => value.isBool
       case _                               => false
     }
@@ -383,9 +384,13 @@ object Options extends OptionsPlatformSpecific {
     aliases: Vector[String],
     primType: PrimType[A],
     description: HelpDoc = HelpDoc.Empty,
-    pseudoName: Option[String] = None
+    pseudoName: Option[String] = None,
+    completer: Option[Completer] = None
   ) extends Options[A]
+      with Completable
       with Input { self =>
+
+    def withCompleter(comp: Completer) = copy(completer = Some(comp))
 
     override lazy val shortDesc: String = s"""Option "$name". ${description.getSpan.text}"""
 

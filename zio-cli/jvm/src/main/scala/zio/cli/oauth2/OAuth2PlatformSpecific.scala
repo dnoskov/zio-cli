@@ -20,14 +20,14 @@ private[cli] object OAuth2PlatformSpecific {
 
   def findProvider(opt: Options[Any]): Option[OAuth2Provider] =
     opt match {
-      case Both(left, right)             => findProvider(left).orElse(findProvider(right))
-      case Options.Map(value, _)         => findProvider(value)
-      case KeyValueMap(_)                => None
-      case Empty                         => None
-      case Options.OrElse(left, right)   => findProvider(left).orElse(findProvider(right))
-      case Options.Single(_, _, _, _, _) => None
-      case OAuth2Options(provider, _, _) => Some(provider)
-      case WithDefault(options, _)       => findProvider(options)
+      case Both(left, right)                => findProvider(left).orElse(findProvider(right))
+      case Options.Map(value, _)            => findProvider(value)
+      case KeyValueMap(_)                   => None
+      case Empty                            => None
+      case Options.OrElse(left, right)      => findProvider(left).orElse(findProvider(right))
+      case Options.Single(_, _, _, _, _, _) => None
+      case OAuth2Options(provider, _, _)    => Some(provider)
+      case WithDefault(options, _)          => findProvider(options)
     }
 
   def oauth2HelpSection(options: Options[Any]): HelpDoc =
