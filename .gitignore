@@ -414,4 +414,4 @@ project/plugins/project/
 .bloop/
 project/secret
 
-
+.envrc
